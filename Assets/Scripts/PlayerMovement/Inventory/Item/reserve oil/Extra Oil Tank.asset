@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17f9d0969317c4149adfc71ca65a1d23, type: 3}
+  m_Name: Extra Oil Tank
+  m_EditorClassIdentifier: 
+  tooltip: 
+  isCursed: 0
+  modifyMaxOil: 1
+  maxOilDelta: 50
+  modifyMoveSpeed: 0
+  moveSpeedMultiplier: 1
+  healOilOnBurn: 0
+  burnOilAmount: 0
