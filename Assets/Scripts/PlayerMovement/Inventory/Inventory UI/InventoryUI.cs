@@ -6,8 +6,8 @@ using UnityEngine.UI;
 /// Root UI cho Inventory:
 /// - Storage Grid (bầu đèn)
 /// - External Grid (3x9)
-/// - Burn button
-/// Quản lý tương tác click cell.
+/// - Burn Zone (kéo thả để đốt)
+/// Quản lý tương tác click cell & drag/drop.
 /// </summary>
 public class InventoryUI : MonoBehaviour
 {
@@ -23,22 +23,18 @@ public class InventoryUI : MonoBehaviour
     [SerializeField] private RectTransform externalGridRoot;
     [SerializeField] private GameObject externalCellPrefab;
 
-    [Header("Buttons")]
-    [SerializeField] private Button burnButton;
-    [SerializeField] private Button closeButton;
+    [Header("Buttons / Controls")]
+    [SerializeField] private Button closeButton;   // chỉ còn nút Close
 
     private readonly List<InventoryCellUI> _storageCells = new();
     private readonly List<InventoryCellUI> _externalCells = new();
 
-    // Item đang "cầm trên tay" (giả lập drag & drop)
+    // Item đang "cầm trên tay" (giả lập drag & drop bằng 2 click)
     private ItemInstance _pickedItem;
     private bool _pickedFromStorage;
     private GridSlot _pickedStorageSlot;
     private int _pickedExternalX = -1;
     private int _pickedExternalY = -1;
-
-    // Các ô Storage được chọn để Burn
-    private readonly HashSet<InventoryCellUI> _selectedForBurn = new();
 
     private void Awake()
     {
@@ -56,13 +52,10 @@ public class InventoryUI : MonoBehaviour
             inventoryManager.OnInventoryClosed += OnInventoryClosed;
         }
 
-        if (burnButton)
-            burnButton.onClick.AddListener(OnBurnButtonPressed);
-
         if (closeButton)
             closeButton.onClick.AddListener(OnCloseButtonPressed);
 
-        gameObject.SetActive(false); // start hidden
+        // gameObject.SetActive(false); // nếu muốn ẩn lúc start
     }
 
     private void OnDestroy()
@@ -87,14 +80,54 @@ public class InventoryUI : MonoBehaviour
         _storageCells.Clear();
 
         var slots = inventoryManager.Slots;
+        if (slots == null) return;
+
+        // group theo row (y)
+        var rows = new Dictionary<int, List<GridSlot>>();
         foreach (var slot in slots)
         {
-            var go = Instantiate(storageCellPrefab, storageGridRoot);
-            var cell = go.GetComponent<InventoryCellUI>();
-            cell.BindStorageSlot(slot, inventoryManager, this);
-            _storageCells.Add(cell);
+            int y = slot.coordinate.y;
+            if (!rows.TryGetValue(y, out var list))
+            {
+                list = new List<GridSlot>();
+                rows[y] = list;
+            }
+            list.Add(slot);
+        }
+
+        // duyệt theo thứ tự row 0 -> 5
+        var orderedRows = new List<int>(rows.Keys);
+        orderedRows.Sort();
+
+        foreach (int y in orderedRows)
+        {
+            // tạo RowPanel
+            var rowGO = new GameObject($"Row_{y}", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+            var rowRT = (RectTransform)rowGO.transform;
+            rowRT.SetParent(storageGridRoot, false);
+
+            var h = rowGO.GetComponent<HorizontalLayoutGroup>();
+            h.spacing = 4f;
+            h.childAlignment = TextAnchor.MiddleCenter;
+            h.childControlWidth = true;
+            h.childControlHeight = true;
+            h.childForceExpandWidth = false;
+            h.childForceExpandHeight = false;
+
+            // sort slot trong row theo x
+            var rowSlots = rows[y];
+            rowSlots.Sort((a, b) => a.coordinate.x.CompareTo(b.coordinate.x));
+
+            foreach (var slot in rowSlots)
+            {
+                var cellGO = Instantiate(storageCellPrefab, rowRT);
+                var cell = cellGO.GetComponent<InventoryCellUI>();
+                cell.BindStorageSlot(slot, inventoryManager, this);
+                _storageCells.Add(cell);
+            }
         }
     }
+
 
     private void BuildExternalGrid()
     {
@@ -129,7 +162,6 @@ public class InventoryUI : MonoBehaviour
     private void OnInventoryOpened(InventoryManager mgr)
     {
         ClearPickedItem();
-        ClearBurnSelection();
         RefreshAll();
         gameObject.SetActive(true);
     }
@@ -137,7 +169,6 @@ public class InventoryUI : MonoBehaviour
     private void OnInventoryClosed(InventoryManager mgr)
     {
         ClearPickedItem();
-        ClearBurnSelection();
         gameObject.SetActive(false);
     }
 
@@ -152,6 +183,7 @@ public class InventoryUI : MonoBehaviour
             OnExternalCellClicked(cell);
     }
 
+    // click vào ô Storage: nếu đang cầm item -> đặt; nếu không -> nhấc item
     private void OnStorageCellClicked(InventoryCellUI cell)
     {
         var slot = cell.StorageSlot;
@@ -164,18 +196,34 @@ public class InventoryUI : MonoBehaviour
             return;
         }
 
-        // Nếu ô có item: 
+        // Nếu ô có item: nhấc item lên tay
         var inst = slot.item;
         if (inst != null && inst.Data != null)
         {
-            // Mode chọn để Burn:
-            ToggleBurnSelection(cell);
+            PickItemFromStorage(slot);
         }
+    }
+
+    // được BurnZoneUI gọi khi thả cell vào vùng Burn
+    public void OnCellDroppedIntoBurnZone(InventoryCellUI cell)
+    {
+        if (cell == null) return;
+        if (!cell.IsStorageCell) return;                 // chỉ burn item từ Storage
+        if (inventoryManager == null) return;
+
+        var slot = cell.StorageSlot;
+        if (slot == null || !slot.IsOccupied) return;
+
+        // Burn 1 slot, cộng dầu + enqueue effect
+        inventoryManager.BurnSingleSlot(slot);
+        RefreshAll();
     }
 
     private void OnExternalCellClicked(InventoryCellUI cell)
     {
         var grid = inventoryManager.ExternalGrid;
+        if (grid == null) return;
+
         var inst = grid[cell.ExternalX, cell.ExternalY];
 
         // Nếu đang cầm item trên tay -> đặt xuống External
@@ -268,53 +316,8 @@ public class InventoryUI : MonoBehaviour
     }
 
     // --------------------------------------------------------------------
-    // BURN SELECTION
+    // CLOSE
     // --------------------------------------------------------------------
-    private void ToggleBurnSelection(InventoryCellUI cell)
-    {
-        if (_pickedItem == null && cell.StorageSlot != null)
-        {
-            bool nowSelected = !_selectedForBurn.Contains(cell);
-
-            if (nowSelected)
-            {
-                _selectedForBurn.Add(cell);
-                cell.SetSelected(true);
-            }
-            else
-            {
-                _selectedForBurn.Remove(cell);
-                cell.SetSelected(false);
-            }
-        }
-    }
-
-    private void ClearBurnSelection()
-    {
-        foreach (var c in _storageCells)
-            c.SetSelected(false);
-        _selectedForBurn.Clear();
-    }
-
-    private void OnBurnButtonPressed()
-    {
-        if (inventoryManager == null) return;
-
-        var slotsToBurn = new List<GridSlot>();
-        foreach (var cell in _selectedForBurn)
-        {
-            if (cell.StorageSlot != null && cell.StorageSlot.IsOccupied)
-                slotsToBurn.Add(cell.StorageSlot);
-        }
-
-        if (slotsToBurn.Count == 0) return;
-
-        inventoryManager.BurnSelectedSlots(slotsToBurn);
-        ClearBurnSelection();
-        RefreshAll();
-        // Lưu ý: hiệu ứng Burn sẽ nổ sau khi CloseInventory + ExecuteBurnQueue()
-    }
-
     private void OnCloseButtonPressed()
     {
         if (inventoryManager != null)

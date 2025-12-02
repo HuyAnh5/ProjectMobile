@@ -440,6 +440,37 @@ public class InventoryManager : MonoBehaviour
         }
     }
 
+    public void BurnSingleSlot(GridSlot slot)
+    {
+        if (slot == null || !slot.IsOccupied) return;
+
+        var inst = slot.item;
+        if (inst == null || inst.Data == null) return;
+
+        // 1) Tính dầu cho 1 món
+        var items = new List<ItemInstance> { inst };
+        float oilGain = CalculateBurnOil(items);
+
+        if (oilLamp != null && oilGain > 0f)
+        {
+            oilLamp.AddOil(oilGain);
+        }
+
+        // 2) Đưa hiệu ứng Burn vào queue PlayerItemSlots
+        if (playerItemSlots != null && inst.Data.effects != null)
+        {
+            foreach (var eff in inst.Data.effects)
+            {
+                if (eff != null)
+                    playerItemSlots.EnqueuePendingBurnEffect(eff);
+            }
+        }
+
+        // 3) Xoá item khỏi storage
+        slot.item = null;
+    }
+
+
     private void DropItemsInExternalGrid()
     {
         if (_externalGrid == null) return;
