@@ -1,3 +1,4 @@
+# Unity generated folders
 [Ll]ibrary/
 [Tt]emp/
 [Oo]bj/
@@ -5,22 +6,34 @@
 [Bb]uilds/
 [Ll]ogs/
 [Mm]emoryCaptures/
-
+[Mm]emoryCaptures/
 UserSettings/
-.sysinfo
 
+# Visual Studio / Rider / IDE
 .vs/
 .vscode/
-*.csproj
-*.unityproj
-*.sln
-*.suo
-*.tmp
+.idea/
 *.user
 *.userprefs
+*.sln*
+*.csproj
 *.pidb
 *.booproj
 *.svd
 
+# OS junk
 .DS_Store
 Thumbs.db
+
+# Crash / debug
+sysinfo.txt
+*.stacktrace
+
+# Builds
+[Bb]uilds*/
+*.apk
+*.aab
+*.app
+*.exe
+*.zip
+*.unitypackage
