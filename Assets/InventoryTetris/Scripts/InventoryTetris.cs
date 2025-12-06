@@ -16,6 +16,20 @@ public class InventoryTetris : MonoBehaviour {
 
     public event EventHandler<PlacedObject> OnObjectPlaced;
 
+    [System.Serializable]
+    public struct RowShape
+    {
+        [Tooltip("Cột bắt đầu (từ 0) của vùng còn dùng được trên hàng này")]
+        public int startColumn;
+        [Tooltip("Số ô liên tiếp còn dùng được trên hàng này")]
+        public int slotCount;
+    }
+
+    [Header("Custom Shape")]
+    [SerializeField] private bool useCustomShape = false;
+    [SerializeField] private RowShape[] rowShapes;
+
+
     private Grid<GridObject> grid;
     private RectTransform itemContainer;
 
@@ -81,9 +95,13 @@ public class InventoryTetris : MonoBehaviour {
         return new Vector2Int(x, z);
     }
 
-    public bool IsValidGridPosition(Vector2Int gridPosition) {
-        return grid.IsValidGridPosition(gridPosition);
+    public bool IsValidGridPosition(Vector2Int gridPosition)
+    {
+        if (!grid.IsValidGridPosition(gridPosition)) return false;
+        if (!IsCellEnabled(gridPosition)) return false;
+        return true;
     }
+
 
 
     public bool TryPlaceItem(ItemTetrisSO itemTetrisSO, Vector2Int placedObjectOrigin, PlacedObjectTypeSO.Dir dir) {
@@ -91,7 +109,8 @@ public class InventoryTetris : MonoBehaviour {
         List<Vector2Int> gridPositionList = itemTetrisSO.GetGridPositionList(placedObjectOrigin, dir);
         bool canPlace = true;
         foreach (Vector2Int gridPosition in gridPositionList) {
-            bool isValidPosition = grid.IsValidGridPosition(gridPosition);
+            bool isValidPosition = IsValidGridPosition(gridPosition);
+
             if (!isValidPosition) {
                 // Not valid
                 canPlace = false;
@@ -197,6 +216,34 @@ public class InventoryTetris : MonoBehaviour {
         foreach (AddItemTetris addItemTetris in listAddItemTetris.addItemTetrisList) {
             TryPlaceItem(InventoryTetrisAssets.Instance.GetItemTetrisSOFromName(addItemTetris.itemTetrisSOName), addItemTetris.gridPosition, addItemTetris.dir);
         }
+    }
+
+    // Kiểm tra 1 ô (x,y) có được phép dùng theo shape hay không
+    private bool IsCellEnabled(Vector2Int gridPosition)
+    {
+        if (!useCustomShape) return true;
+
+        int height = grid.GetHeight();
+
+        // Chuyển y (0 = dưới) thành index từ trên xuống
+        int yFromTop = height - 1 - gridPosition.y;
+
+        if (yFromTop < 0 || yFromTop >= rowShapes.Length) return false;
+
+        RowShape row = rowShapes[yFromTop];
+        if (row.slotCount <= 0) return false;
+
+        return gridPosition.x >= row.startColumn &&
+               gridPosition.x < row.startColumn + row.slotCount;
+    }
+
+
+    // DEBUG: kiểm tra 1 ô có thể đặt đồ hay không
+    public bool CanPlaceOnCell(Vector2Int gridPosition)
+    {
+        // Hiện tại chỉ cần check trong biên grid.
+        // Sau này bạn thêm custom shape thì chỉ cần sửa hàm này là debug tự đúng theo.
+        return grid.IsValidGridPosition(gridPosition);
     }
 
 }
