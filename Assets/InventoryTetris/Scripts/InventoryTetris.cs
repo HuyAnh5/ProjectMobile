@@ -8,6 +8,11 @@ public class InventoryTetris : MonoBehaviour {
 
     public static InventoryTetris Instance { get; private set; }
 
+    [Header("Grid Settings")]
+    [SerializeField] private int gridWidth = 10;
+    [SerializeField] private int gridHeight = 10;
+    [SerializeField] private float cellSize = 50f;
+
 
     public event EventHandler<PlacedObject> OnObjectPlaced;
 
@@ -18,14 +23,11 @@ public class InventoryTetris : MonoBehaviour {
     private void Awake() {
         Instance = this;
 
-        int gridWidth = 10;
-        int gridHeight = 10;
-        float cellSize = 50f;
         grid = new Grid<GridObject>(gridWidth, gridHeight, cellSize, new Vector3(0, 0, 0), (Grid<GridObject> g, int x, int y) => new GridObject(g, x, y));
 
         itemContainer = transform.Find("ItemContainer").GetComponent<RectTransform>();
 
-        transform.Find("BackgroundTempVisual").gameObject.SetActive(false);
+        //transform.Find("BackgroundTempVisual").gameObject.SetActive(false);
     }
 
     public class GridObject {

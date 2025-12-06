@@ -18,7 +18,8 @@ public class InventoryUI : MonoBehaviour
     [Header("Storage Grid UI")]
     [SerializeField] private RectTransform storageGridRoot;
     [SerializeField] private GameObject storageCellPrefab;
-
+    [SerializeField] private Vector2 storageCellSize = new Vector2(64, 64);
+    [SerializeField] private Vector2 storageCellSpacing = new Vector2(4, 4);
     [Header("External Grid UI")]
     [SerializeField] private RectTransform externalGridRoot;
     [SerializeField] private GameObject externalCellPrefab;
@@ -43,9 +44,6 @@ public class InventoryUI : MonoBehaviour
         if (playerItemSlots == null)
             playerItemSlots = FindAnyObjectByType<PlayerItemSlots>();
 
-        BuildStorageGrid();
-        BuildExternalGrid();
-
         if (inventoryManager != null)
         {
             inventoryManager.OnInventoryOpened += OnInventoryOpened;
@@ -54,9 +52,16 @@ public class InventoryUI : MonoBehaviour
 
         if (closeButton)
             closeButton.onClick.AddListener(OnCloseButtonPressed);
-
-        // gameObject.SetActive(false); // nếu muốn ẩn lúc start
     }
+
+    private void Start()
+    {
+        // Lúc này tất cả Awake khác (kể cả InventoryManager) đã chạy xong
+        BuildStorageGrid();
+        BuildExternalGrid();
+        RefreshAll();
+    }
+
 
     private void OnDestroy()
     {
@@ -70,63 +75,47 @@ public class InventoryUI : MonoBehaviour
     // --------------------------------------------------------------------
     // BUILD GRIDS
     // --------------------------------------------------------------------
+    // InventoryUI.cs
     private void BuildStorageGrid()
     {
         if (inventoryManager == null || storageGridRoot == null || storageCellPrefab == null)
+        {
+            Debug.LogError("InventoryUI: Missing refs for StorageGrid.");
             return;
+        }
 
         foreach (Transform child in storageGridRoot)
             Destroy(child.gameObject);
         _storageCells.Clear();
 
         var slots = inventoryManager.Slots;
-        if (slots == null) return;
+        float cellW = storageCellSize.x + storageCellSpacing.x;
+        float cellH = storageCellSize.y + storageCellSpacing.y;
 
-        // group theo row (y)
-        var rows = new Dictionary<int, List<GridSlot>>();
         foreach (var slot in slots)
         {
-            int y = slot.coordinate.y;
-            if (!rows.TryGetValue(y, out var list))
-            {
-                list = new List<GridSlot>();
-                rows[y] = list;
-            }
-            list.Add(slot);
+            var go = Instantiate(storageCellPrefab, storageGridRoot);
+            var rect = go.GetComponent<RectTransform>();
+
+            // anchor theo top-left của StorageGridRoot
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.sizeDelta = storageCellSize;
+
+            // slot.coordinate.x đã gồm startColumn -> ra đúng pattern bầu đèn
+            float x = slot.coordinate.x * cellW;
+            float y = -slot.coordinate.y * cellH;
+            rect.anchoredPosition = new Vector2(x, y);
+
+            var cell = go.GetComponent<InventoryCellUI>();
+            cell.BindStorageSlot(slot, inventoryManager, this);
+            _storageCells.Add(cell);
         }
 
-        // duyệt theo thứ tự row 0 -> 5
-        var orderedRows = new List<int>(rows.Keys);
-        orderedRows.Sort();
-
-        foreach (int y in orderedRows)
-        {
-            // tạo RowPanel
-            var rowGO = new GameObject($"Row_{y}", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-            var rowRT = (RectTransform)rowGO.transform;
-            rowRT.SetParent(storageGridRoot, false);
-
-            var h = rowGO.GetComponent<HorizontalLayoutGroup>();
-            h.spacing = 4f;
-            h.childAlignment = TextAnchor.MiddleCenter;
-            h.childControlWidth = true;
-            h.childControlHeight = true;
-            h.childForceExpandWidth = false;
-            h.childForceExpandHeight = false;
-
-            // sort slot trong row theo x
-            var rowSlots = rows[y];
-            rowSlots.Sort((a, b) => a.coordinate.x.CompareTo(b.coordinate.x));
-
-            foreach (var slot in rowSlots)
-            {
-                var cellGO = Instantiate(storageCellPrefab, rowRT);
-                var cell = cellGO.GetComponent<InventoryCellUI>();
-                cell.BindStorageSlot(slot, inventoryManager, this);
-                _storageCells.Add(cell);
-            }
-        }
+        Debug.Log($"InventoryUI: Built {_storageCells.Count} storage cells.");
     }
+
 
 
     private void BuildExternalGrid()
@@ -138,8 +127,11 @@ public class InventoryUI : MonoBehaviour
             Destroy(child.gameObject);
         _externalCells.Clear();
 
-        var external = inventoryManager.ExternalGrid;
-        if (external == null) return;
+        // Đảm bảo external grid logic đã được khởi tạo
+        if (inventoryManager.ExternalGrid == null)
+        {
+            inventoryManager.ClearExternalGrid();
+        }
 
         int width = inventoryManager.ExternalWidth;
         int height = inventoryManager.ExternalHeight;
@@ -251,24 +243,28 @@ public class InventoryUI : MonoBehaviour
         _pickedFromStorage = true;
         _pickedStorageSlot = slot;
 
-        slot.item = null;
+        // NEW: xoá item khỏi tất cả ô mà nó chiếm
+        if (inventoryManager != null)
+            inventoryManager.ClearItemFromStorage(_pickedItem);
+
         RefreshAll();
     }
+
+
 
     private void TryPlacePickedItemToStorage(GridSlot targetSlot)
     {
         if (_pickedItem == null || targetSlot == null) return;
+        if (inventoryManager == null) return;
 
-        if (targetSlot.item != null)
-        {
-            // tạm thời: không swap, không đặt nếu không trống
-            return;
-        }
+        bool placed = inventoryManager.TryPlaceItemAt(_pickedItem, targetSlot.coordinate);
+        if (!placed)
+            return; // không đủ chỗ / nằm ngoài hình bầu -> bỏ qua
 
-        targetSlot.item = _pickedItem;
         ClearPickedItem();
         RefreshAll();
     }
+
 
     private void PickItemFromExternal(int x, int y)
     {

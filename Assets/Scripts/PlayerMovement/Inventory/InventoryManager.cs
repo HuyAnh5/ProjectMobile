@@ -34,6 +34,11 @@ public class InventoryManager : MonoBehaviour
     [Tooltip("Curve: input = OilRatio [0..1], output = số row bị Dark (từ trên xuống).")]
     [SerializeField] private AnimationCurve darknessCurve;
 
+    [Header("Debug")]
+    [SerializeField] private ItemData debugStartItem;
+    [SerializeField] private Vector2Int debugStartCoord = new Vector2Int(2, 1);
+
+
     /// <summary>
     /// Event cho UI – gọi khi item bắt đầu bước vào vùng warning (sắp hỏng).
     /// </summary>
@@ -44,6 +49,13 @@ public class InventoryManager : MonoBehaviour
 
     /// <summary>Danh sách slot của Storage Grid.</summary>
     public IReadOnlyList<GridSlot> Slots => _slots;
+
+    private readonly Dictionary<Vector2Int, GridSlot> _slotLookup = new();
+
+
+    public int StorageWidth { get; private set; }
+    public int StorageHeight { get; private set; }
+
 
     // --------------------------------------------------------------------
     // EXTERNAL / GROUND GRID (3x9)
@@ -85,6 +97,16 @@ public class InventoryManager : MonoBehaviour
         InitExternalGrid();
     }
 
+    private void Start()
+    {
+        if (debugStartItem != null)
+        {
+            var inst = new ItemInstance(debugStartItem);
+            TryPlaceItemAt(inst, debugStartCoord);
+        }
+    }
+
+
     private void Update()
     {
         if (!oilLamp) return;
@@ -96,9 +118,11 @@ public class InventoryManager : MonoBehaviour
     // --------------------------------------------------------------------
     // STORAGE GRID BUILD
     // --------------------------------------------------------------------
+    
     private void BuildGridFromDefinition()
     {
         _slots.Clear();
+
         if (gridDefinition == null)
         {
             Debug.LogError("InventoryManager: Missing LanternGridDefinition.");
@@ -107,13 +131,123 @@ public class InventoryManager : MonoBehaviour
 
         foreach (var rowDef in gridDefinition.Rows)
         {
-            for (int x = 0; x < rowDef.slotCount; x++)
+            int y = rowDef.rowIndex;
+
+            // dùng luôn startColumn + slotCount
+            int startX = rowDef.startColumn;
+            for (int i = 0; i < rowDef.slotCount; i++)
             {
-                var coord = new Vector2Int(x, rowDef.rowIndex);
+                int x = startX + i;
+                var coord = new Vector2Int(x, y);
                 _slots.Add(new GridSlot(coord));
             }
         }
+
+        Debug.Log($"InventoryManager: Built {_slots.Count} storage slots from LanternGridDefinition.");
     }
+
+
+    // Lấy slot theo toạ độ (trả về null nếu ô đó không tồn tại trong hình bầu)
+    public GridSlot GetSlotAt(Vector2Int coord)
+    {
+        _slotLookup.TryGetValue(coord, out var slot);
+        return slot;
+    }
+
+    // Tất cả slot hiện đang chứa cùng một ItemInstance
+    public IEnumerable<GridSlot> GetSlotsForItem(ItemInstance inst)
+    {
+        if (inst == null) yield break;
+
+        foreach (var slot in _slots)
+        {
+            if (slot.item == inst)
+                yield return slot;
+        }
+    }
+
+    // Xoá item khỏi mọi slot Storage
+    public void ClearItemFromStorage(ItemInstance inst)
+    {
+        if (inst == null) return;
+
+        foreach (var slot in _slots)
+        {
+            if (slot.item == inst)
+                slot.item = null;
+        }
+    }
+
+    // Liệt kê các toạ độ mà item sẽ chiếm, với anchor tại anchorCoord
+    private IEnumerable<Vector2Int> EnumerateItemCoordinates(ItemInstance inst, Vector2Int anchorCoord)
+    {
+        if (inst == null || inst.Data == null)
+            yield break;
+
+        var data = inst.Data;
+
+        // Nếu không cấu hình shape -> mặc định 1 ô
+        var shape = (data.shapeCells != null && data.shapeCells.Length > 0)
+            ? data.shapeCells
+            : new[] { Vector2Int.zero };
+
+        foreach (var cell in shape)
+        {
+            Vector2Int offset = cell;
+
+            // Nếu có xoay: rotate 90 độ clockwise
+            if (inst.IsRotated)
+            {
+                // (x,y) -> (y,-x)
+                offset = new Vector2Int(cell.y, -cell.x);
+            }
+
+            yield return anchorCoord + offset;
+        }
+    }
+
+    // Kiểm tra có thể đặt item với anchor tại anchorCoord hay không
+    public bool CanPlaceItemAt(ItemInstance inst, Vector2Int anchorCoord)
+    {
+        if (inst == null || inst.Data == null)
+            return false;
+
+        foreach (var coord in EnumerateItemCoordinates(inst, anchorCoord))
+        {
+            if (!_slotLookup.TryGetValue(coord, out var slot))
+                return false;              // nằm ngoài hình bầu
+
+            if (slot.isMasked)
+                return false;
+
+            if (slot.item != null && slot.item != inst)
+                return false;              // đã có item khác chiếm
+        }
+
+        return true;
+    }
+
+    // Đặt item vào grid (xoá chỗ cũ nếu có). Trả về true nếu thành công.
+    public bool TryPlaceItemAt(ItemInstance inst, Vector2Int anchorCoord)
+    {
+        if (!CanPlaceItemAt(inst, anchorCoord))
+            return false;
+
+        // Xoá khỏi vị trí cũ
+        ClearItemFromStorage(inst);
+
+        // Gán vào các ô mới
+        foreach (var coord in EnumerateItemCoordinates(inst, anchorCoord))
+        {
+            if (_slotLookup.TryGetValue(coord, out var slot))
+            {
+                slot.item = inst;
+            }
+        }
+
+        return true;
+    }
+
 
     private void EnsureDarknessCurveDefault()
     {

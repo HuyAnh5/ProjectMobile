@@ -30,4 +30,9 @@ public class ItemData : ScriptableObject
 
     [Tooltip("Đánh dấu item là Material để tính combo burn (5 mats = ~1 equipment).")]
     public bool isMaterial = false;
+
+    [Header("Grid Shape (Storage)")]
+    [Tooltip("Các ô tương đối mà item chiếm trong Storage, tính từ ô anchor (0,0). " +
+         "Ví dụ kiếm 3 ô thẳng đứng: (0,0), (0,1), (0,2). Nếu để trống -> mặc định 1 ô.")]
+    public Vector2Int[] shapeCells;
 }

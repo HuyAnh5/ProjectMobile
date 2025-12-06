@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -52,9 +52,12 @@ public class InventoryTetrisManualPlacement : MonoBehaviour {
             if (tryPlaceItem) {
                 OnObjectPlaced?.Invoke(this, EventArgs.Empty);
             } else {
+
+                Debug.Log("Cannot Build Here!");
+
                 // Cannot build here
-                TooltipCanvas.ShowTooltip_Static("Cannot Build Here!");
-                FunctionTimer.Create(() => { TooltipCanvas.HideTooltip_Static(); }, 2f, "HideTooltip", true, true);
+                //TooltipCanvas.ShowTooltip_Static("Cannot Build Here!");
+                //FunctionTimer.Create(() => { TooltipCanvas.HideTooltip_Static(); }, 2f, "HideTooltip", true, true);
             }
         }
 

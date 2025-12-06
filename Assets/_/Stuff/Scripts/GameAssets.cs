@@ -56,12 +56,6 @@ public class GameAssets : MonoBehaviour {
     public Material m_DoorKeyHoleGreen;
     public Material m_DoorKeyHoleBlue;
 
-    public Cinemachine.NoiseSettings cinemachineDefaultNoiseProfile;
-
-
-
-
-
 
     public static class UnitAnimTypeEnum {
 

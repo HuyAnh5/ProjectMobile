@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -23,7 +23,8 @@ public class InventoryTetrisBackground : MonoBehaviour {
 
         GetComponent<RectTransform>().sizeDelta = new Vector2(inventoryTetris.GetGrid().GetWidth(), inventoryTetris.GetGrid().GetHeight()) * inventoryTetris.GetGrid().GetCellSize();
 
-        GetComponent<RectTransform>().anchoredPosition = inventoryTetris.GetComponent<RectTransform>().anchoredPosition;
+        // Nếu background là child của InventoryTetrisRoot thì anchoredPosition phải = (0,0)
+        GetComponent<RectTransform>().anchoredPosition = Vector2.zero;
     }
 
 }

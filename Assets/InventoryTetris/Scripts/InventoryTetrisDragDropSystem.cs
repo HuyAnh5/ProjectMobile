@@ -1,15 +1,14 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using CodeMonkey.Utils;
 
-public class InventoryTetrisDragDropSystem : MonoBehaviour {
-
+public class InventoryTetrisDragDropSystem : MonoBehaviour
+{
     public static InventoryTetrisDragDropSystem Instance { get; private set; }
 
-
-
     [SerializeField] private List<InventoryTetris> inventoryTetrisList;
+
+    private Canvas uiCanvas;
 
     private InventoryTetris draggingInventoryTetris;
     private PlacedObject draggingPlacedObject;
@@ -17,122 +16,171 @@ public class InventoryTetrisDragDropSystem : MonoBehaviour {
     private Vector2 mouseDragAnchoredPositionOffset;
     private PlacedObjectTypeSO.Dir dir;
 
-
-    private void Awake() {
+    private void Awake()
+    {
         Instance = this;
+
+        // Tìm Canvas bên ngoài (giả sử tất cả inventory cùng 1 Canvas)
+        if (inventoryTetrisList != null && inventoryTetrisList.Count > 0)
+        {
+            uiCanvas = inventoryTetrisList[0].GetComponentInParent<Canvas>();
+        }
     }
 
-    private void Start() {
-        foreach (InventoryTetris inventoryTetris in inventoryTetrisList) {
-            inventoryTetris.OnObjectPlaced += (object sender, PlacedObject placedObject) => {
-
+    private void Start()
+    {
+        foreach (InventoryTetris inventoryTetris in inventoryTetrisList)
+        {
+            inventoryTetris.OnObjectPlaced += (object sender, PlacedObject placedObject) =>
+            {
+                // Không cần làm gì thêm ở đây cho drag-drop
             };
         }
     }
 
-    private void Update() {
-        if (Input.GetKeyDown(KeyCode.R)) {
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.R))
+        {
             dir = PlacedObjectTypeSO.GetNextDir(dir);
         }
 
-        if (draggingPlacedObject != null) {
-            // Calculate target position to move the dragged item
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(draggingInventoryTetris.GetItemContainer(), Input.mousePosition, null, out Vector2 targetPosition);
-            targetPosition += new Vector2(-mouseDragAnchoredPositionOffset.x, -mouseDragAnchoredPositionOffset.y);
+        if (draggingPlacedObject == null) return;
 
-            // Apply rotation offset to target position
-            Vector2Int rotationOffset = draggingPlacedObject.GetPlacedObjectTypeSO().GetRotationOffset(dir);
-            targetPosition += new Vector2(rotationOffset.x, rotationOffset.y) * draggingInventoryTetris.GetGrid().GetCellSize();
-
-            // Snap position
-            targetPosition /= 10f;// draggingInventoryTetris.GetGrid().GetCellSize();
-            targetPosition = new Vector2(Mathf.Floor(targetPosition.x), Mathf.Floor(targetPosition.y));
-            targetPosition *= 10f;
-
-            // Move and rotate dragged object
-            draggingPlacedObject.GetComponent<RectTransform>().anchoredPosition = Vector2.Lerp(draggingPlacedObject.GetComponent<RectTransform>().anchoredPosition, targetPosition, Time.deltaTime * 20f);
-            draggingPlacedObject.transform.rotation = Quaternion.Lerp(draggingPlacedObject.transform.rotation, Quaternion.Euler(0, 0, -draggingPlacedObject.GetPlacedObjectTypeSO().GetRotationAngle(dir)), Time.deltaTime * 15f);
+        if (uiCanvas == null && draggingInventoryTetris != null)
+        {
+            uiCanvas = draggingInventoryTetris.GetComponentInParent<Canvas>();
         }
+
+        // Lấy vị trí chuột trong toạ độ local của ItemContainer
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            draggingInventoryTetris.GetItemContainer(),
+            Input.mousePosition,
+            uiCanvas != null ? uiCanvas.worldCamera : null,
+            out Vector2 localPos
+        );
+
+        // Trừ offset để bám đúng điểm đã click
+        localPos -= mouseDragAnchoredPositionOffset;
+
+        // Di chuyển item đúng theo chuột (không snap)
+        RectTransform rect = draggingPlacedObject.GetComponent<RectTransform>();
+        rect.anchoredPosition = localPos;
     }
 
-    public void StartedDragging(InventoryTetris inventoryTetris, PlacedObject placedObject) {
-        // Started Dragging
+    public void StartedDragging(InventoryTetris inventoryTetris, PlacedObject placedObject)
+    {
         draggingInventoryTetris = inventoryTetris;
         draggingPlacedObject = placedObject;
 
         Cursor.visible = false;
 
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(inventoryTetris.GetItemContainer(), Input.mousePosition, null, out Vector2 anchoredPosition);
+        if (uiCanvas == null)
+        {
+            uiCanvas = draggingInventoryTetris.GetComponentInParent<Canvas>();
+        }
+
+        // Vị trí local của chuột lúc bắt đầu kéo
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            inventoryTetris.GetItemContainer(),
+            Input.mousePosition,
+            uiCanvas != null ? uiCanvas.worldCamera : null,
+            out Vector2 anchoredPosition
+        );
+
+        // Vị trí ô lưới tại điểm chuột
         Vector2Int mouseGridPosition = inventoryTetris.GetGridPosition(anchoredPosition);
 
-        // Calculate Grid Position offset from the placedObject origin to the mouseGridPosition
+        // Offset giữa origin của item và ô mà chuột đang ở
         mouseDragGridPositionOffset = mouseGridPosition - placedObject.GetGridPosition();
 
-        // Calculate the anchored poisiton offset, where exactly on the image the player clicked
-        mouseDragAnchoredPositionOffset = anchoredPosition - placedObject.GetComponent<RectTransform>().anchoredPosition;
+        // Offset giữa tâm Rect và điểm click trên sprite
+        RectTransform rect = placedObject.GetComponent<RectTransform>();
+        mouseDragAnchoredPositionOffset = anchoredPosition - rect.anchoredPosition;
 
-        // Save initial direction when started draggign
+        // Lưu hướng hiện tại của item
         dir = placedObject.GetDir();
-
-        // Apply rotation offset to drag anchored position offset
-        Vector2Int rotationOffset = draggingPlacedObject.GetPlacedObjectTypeSO().GetRotationOffset(dir);
-        mouseDragAnchoredPositionOffset += new Vector2(rotationOffset.x, rotationOffset.y) * draggingInventoryTetris.GetGrid().GetCellSize();
     }
 
-    public void StoppedDragging(InventoryTetris fromInventoryTetris, PlacedObject placedObject) {
+    public void StoppedDragging(InventoryTetris fromInventoryTetris, PlacedObject placedObject)
+    {
         draggingInventoryTetris = null;
         draggingPlacedObject = null;
 
         Cursor.visible = true;
 
-        // Remove item from its current inventory
-        fromInventoryTetris.RemoveItemAt(placedObject.GetGridPosition());
+        // Lưu lại gridPosition & dir cũ phòng khi phải restore
+        Vector2Int oldGridPosition = placedObject.GetGridPosition();
+        PlacedObjectTypeSO.Dir oldDir = placedObject.GetDir();
+
+        // Xoá item khỏi inventory cũ
+        fromInventoryTetris.RemoveItemAt(oldGridPosition);
 
         InventoryTetris toInventoryTetris = null;
 
-        // Find out which InventoryTetris is under the mouse position
-        foreach (InventoryTetris inventoryTetris in inventoryTetrisList) {
-            Vector3 screenPoint = Input.mousePosition;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(inventoryTetris.GetItemContainer(), screenPoint, null, out Vector2 anchoredPosition);
-            Vector2Int placedObjectOrigin = inventoryTetris.GetGridPosition(anchoredPosition);
-            placedObjectOrigin = placedObjectOrigin - mouseDragGridPositionOffset;
+        // Tìm inventory đang nằm dưới chuột
+        foreach (InventoryTetris inventoryTetris in inventoryTetrisList)
+        {
+            Canvas canvas = inventoryTetris.GetComponentInParent<Canvas>();
 
-            if (inventoryTetris.IsValidGridPosition(placedObjectOrigin)) {
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                inventoryTetris.GetItemContainer(),
+                Input.mousePosition,
+                canvas != null ? canvas.worldCamera : null,
+                out Vector2 anchoredPosition
+            );
+
+            Vector2Int placedObjectOrigin = inventoryTetris.GetGridPosition(anchoredPosition);
+            placedObjectOrigin -= mouseDragGridPositionOffset;
+
+            if (inventoryTetris.IsValidGridPosition(placedObjectOrigin))
+            {
                 toInventoryTetris = inventoryTetris;
                 break;
             }
         }
 
-        // Check if it's on top of a InventoryTetris
-        if (toInventoryTetris != null) {
-            Vector3 screenPoint = Input.mousePosition;
-            RectTransformUtility.ScreenPointToLocalPointInRectangle(toInventoryTetris.GetItemContainer(), screenPoint, null, out Vector2 anchoredPosition);
+        // Nếu chuột đang nằm trên 1 inventory nào đó
+        if (toInventoryTetris != null)
+        {
+            Canvas canvas = toInventoryTetris.GetComponentInParent<Canvas>();
+
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                toInventoryTetris.GetItemContainer(),
+                Input.mousePosition,
+                canvas != null ? canvas.worldCamera : null,
+                out Vector2 anchoredPosition
+            );
+
             Vector2Int placedObjectOrigin = toInventoryTetris.GetGridPosition(anchoredPosition);
-            placedObjectOrigin = placedObjectOrigin - mouseDragGridPositionOffset;
+            placedObjectOrigin -= mouseDragGridPositionOffset;
 
-            bool tryPlaceItem = toInventoryTetris.TryPlaceItem(placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO, placedObjectOrigin, dir);
+            bool tryPlaceItem = toInventoryTetris.TryPlaceItem(
+                placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO,
+                placedObjectOrigin,
+                dir
+            );
 
-            if (tryPlaceItem) {
-                // Item placed!
-            } else {
-                // Cannot drop item here!
-                TooltipCanvas.ShowTooltip_Static("Cannot Drop Item Here!");
-                FunctionTimer.Create(() => { TooltipCanvas.HideTooltip_Static(); }, 2f, "HideTooltip", true, true);
-
-                // Drop on original position
-                fromInventoryTetris.TryPlaceItem(placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO, placedObject.GetGridPosition(), placedObject.GetDir());
+            if (!tryPlaceItem)
+            {
+                // Không đặt được trong inventory → trả về vị trí cũ
+                Debug.Log("Cannot Drop Item Here (invalid position inside inventory)!");
+                fromInventoryTetris.TryPlaceItem(
+                    placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO,
+                    oldGridPosition,
+                    oldDir
+                );
             }
-        } else {
-            // Not on top of any Inventory Tetris!
-
-            // Cannot drop item here!
-            TooltipCanvas.ShowTooltip_Static("Cannot Drop Item Here!");
-            FunctionTimer.Create(() => { TooltipCanvas.HideTooltip_Static(); }, 2f, "HideTooltip", true, true);
-
-            // Drop on original position
-            fromInventoryTetris.TryPlaceItem(placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO, placedObject.GetGridPosition(), placedObject.GetDir());
+        }
+        else
+        {
+            // Chuột không nằm trên inventory nào → trả về vị trí cũ
+            Debug.Log("Cannot Drop Item Here (no inventory under mouse)!");
+            fromInventoryTetris.TryPlaceItem(
+                placedObject.GetPlacedObjectTypeSO() as ItemTetrisSO,
+                oldGridPosition,
+                oldDir
+            );
         }
     }
-
-
 }

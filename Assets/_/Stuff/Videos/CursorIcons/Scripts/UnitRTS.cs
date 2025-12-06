@@ -39,7 +39,7 @@ public class UnitRTS : MonoBehaviour {
                             GetComponent<IMoveVelocity>().Disable();
                             Vector3 attackDir = (enemyRTS.GetPosition() - transform.position).normalized;
                             UtilsClass.ShakeCamera(.6f, .1f);
-                            CinemachineShake.ScreenShake_Static(20f, .1f);
+                            //CinemachineShake.ScreenShake_Static(20f, .1f);
 
                             characterBase.PlayShootAnimation(attackDir, (Vector3 vec) => {
                                 if (enemyRTS == null) return;
