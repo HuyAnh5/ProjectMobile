@@ -895,10 +895,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98d148b033c07f840996b03106e26a33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridWidth: 6
-  gridHeight: 6
+  gridWidth: 10
+  gridHeight: 10
   cellSize: 50
-  useCustomShape: 1
+  useCustomShape: 0
   rowShapes:
   - startColumn: 2
     slotCount: 2
@@ -939,7 +939,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 350, y: 0}
-  m_SizeDelta: {x: 300, y: 300}
+  m_SizeDelta: {x: 500, y: 500}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1626458382
 MonoBehaviour:

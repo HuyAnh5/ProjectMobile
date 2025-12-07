@@ -246,4 +246,19 @@ public class InventoryTetris : MonoBehaviour {
         return grid.IsValidGridPosition(gridPosition);
     }
 
+    public void RemoveItem(PlacedObject placedObject)
+    {
+        if (placedObject == null) return;
+
+        // Xoá reference khỏi grid
+        List<Vector2Int> gridPositionList = placedObject.GetGridPositionList();
+        foreach (Vector2Int gridPosition in gridPositionList)
+        {
+            grid.GetGridObject(gridPosition.x, gridPosition.y).ClearPlacedObject();
+        }
+
+        // Destroy luôn GameObject của item
+        placedObject.DestroySelf();
+    }
+
 }

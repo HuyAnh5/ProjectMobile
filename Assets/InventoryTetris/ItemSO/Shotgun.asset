@@ -17,3 +17,11 @@ MonoBehaviour:
   visual: {fileID: 2148587555689196983, guid: 25c2a01074650284eb6a65ac7ef7737f, type: 3}
   width: 5
   height: 2
+  localCells:
+  - {x: 0, y: 0}
+  - {x: 0, y: 1}
+  - {x: 1, y: 1}
+  - {x: 2, y: 1}
+  - {x: 3, y: 1}
+  - {x: 4, y: 1}
+  - {x: 5, y: 1}
