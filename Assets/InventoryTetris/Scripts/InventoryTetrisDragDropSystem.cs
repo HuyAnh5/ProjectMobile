@@ -113,8 +113,8 @@ public class InventoryTetrisDragDropSystem : MonoBehaviour
         Vector2Int oldGridPosition = placedObject.GetGridPosition();
         PlacedObjectTypeSO.Dir oldDir = placedObject.GetDir();
 
-        // Xoá item khỏi inventory cũ
-        fromInventoryTetris.RemoveItemAt(oldGridPosition);
+        // Xoá item khỏi inventory cũ (dựa trực tiếp vào object đang kéo)
+        fromInventoryTetris.RemoveItem(placedObject);
 
         InventoryTetris toInventoryTetris = null;
 
