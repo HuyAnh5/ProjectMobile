@@ -24,4 +24,5 @@ MonoBehaviour:
   - {x: 2, y: 1}
   - {x: 3, y: 1}
   - {x: 4, y: 1}
-  - {x: 5, y: 1}
+  isWeapon: 1
+  loadoutSprite: {fileID: 21300000, guid: 7c1835c831cc33045b3e15f614ed66d7, type: 3}

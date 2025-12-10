@@ -49,13 +49,34 @@ public class InventoryTetrisDragDrop : MonoBehaviour, IPointerDownHandler, IBegi
         //rectTransform.anchoredPosition += eventData.delta / canvas.scaleFactor;
     }
 
-    public void OnEndDrag(PointerEventData eventData) {
-        //Debug.Log("OnEndDrag");
+    //public void OnEndDrag(PointerEventData eventData) {
+    //    //Debug.Log("OnEndDrag");
+    //    canvasGroup.alpha = 1f;
+    //    canvasGroup.blocksRaycasts = true;
+
+    //    InventoryTetrisDragDropSystem.Instance.StoppedDragging(inventoryTetris, placedObject);
+    //}
+
+    public void OnEndDrag(PointerEventData eventData)
+    {
         canvasGroup.alpha = 1f;
         canvasGroup.blocksRaycasts = true;
 
+        if (InventoryLoadoutAndBurnSystem.Instance != null &&
+            InventoryLoadoutAndBurnSystem.Instance.TryHandleDropFromGrid(
+                eventData, inventoryTetris, placedObject))
+        {
+            Cursor.visible = true;
+            return;
+        }
+
         InventoryTetrisDragDropSystem.Instance.StoppedDragging(inventoryTetris, placedObject);
     }
+
+
+
+
+
 
     public void OnPointerDown(PointerEventData eventData) {
         //Debug.Log("OnPointerDown");

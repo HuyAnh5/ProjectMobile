@@ -11,6 +11,13 @@ public class ItemTetrisSO : PlacedObjectTypeSO
     [Tooltip("Khai báo shape cho hướng Down. (0,0) là ô dưới trái.")]
     public List<Vector2Int> localCells = new List<Vector2Int>();
 
+    [Header("Category (for Active Loadout)")]
+    [Tooltip("Tick nếu đây là vũ khí. Không tick = item thường.")]
+    public bool isWeapon = false;
+
+    [Tooltip("Sprite 1x1 hiển thị khi item ở trong Active Loadout slot.")]
+    public Sprite loadoutSprite;
+
     public static void CreateVisualGrid(Transform visualParentTransform, ItemTetrisSO itemTetrisSO, float cellSize)
     {
         Transform visualTransform = Object.Instantiate(
@@ -46,6 +53,51 @@ public class ItemTetrisSO : PlacedObjectTypeSO
 
         visualTransform.SetAsFirstSibling();
     }
+
+    //public static void CreateVisualGrid(Transform visualParentTransform, ItemTetrisSO itemTetrisSO, float cellSize)
+    //{
+    //    Transform visualTransform = Object.Instantiate(
+    //        InventoryTetrisAssets.Instance.gridVisual,
+    //        visualParentTransform
+    //    );
+
+    //    // Create background
+    //    Transform template = visualTransform.Find("Template");
+    //    template.gameObject.SetActive(false);
+
+    //    for (int x = 0; x < itemTetrisSO.width; x++)
+    //    {
+    //        for (int y = 0; y < itemTetrisSO.height; y++)
+    //        {
+    //            Transform backgroundSingleTransform = Object.Instantiate(template, visualTransform);
+    //            backgroundSingleTransform.gameObject.SetActive(true);
+
+    //            // Nếu có gridSprite riêng cho item → gán vào ô
+    //            var img = backgroundSingleTransform.GetComponent<UnityEngine.UI.Image>();
+    //            if (img != null && itemTetrisSO.gridSprite != null)
+    //            {
+    //                img.sprite = itemTetrisSO.gridSprite;
+    //                img.preserveAspect = true;
+    //            }
+    //        }
+    //    }
+
+    //    GridLayoutGroup gridLayoutGroup = visualTransform.GetComponent<GridLayoutGroup>();
+    //    if (gridLayoutGroup != null)
+    //    {
+    //        gridLayoutGroup.cellSize = Vector2.one * cellSize;
+    //    }
+
+    //    RectTransform rt = visualTransform.GetComponent<RectTransform>();
+    //    if (rt != null)
+    //    {
+    //        rt.sizeDelta = new Vector2(itemTetrisSO.width, itemTetrisSO.height) * cellSize;
+    //        rt.anchoredPosition = Vector2.zero;
+    //    }
+
+    //    visualTransform.SetAsFirstSibling();
+    //}
+
 
     private Vector2Int RotateLocalCell(Vector2Int cell, Dir dir)
     {

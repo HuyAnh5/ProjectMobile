@@ -17,3 +17,6 @@ MonoBehaviour:
   visual: {fileID: 2148587555689196983, guid: 1573d43e71775264180427d672e03670, type: 3}
   width: 2
   height: 2
+  localCells: []
+  isWeapon: 0
+  loadoutSprite: {fileID: 0}

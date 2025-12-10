@@ -19,3 +19,6 @@ MonoBehaviour:
   isCursed: 0
   effects:
   - {fileID: 11400000, guid: 8987e4e630ad90745b8199698b080d3a, type: 2}
+  baseOilOnBurn: 10
+  isMaterial: 0
+  shapeCells: []

@@ -10,11 +10,14 @@ public class InventoryTetrisTestSpawner : MonoBehaviour
         var assets = InventoryTetrisAssets.Instance;
 
         // Spawn trên b?ng A
-        inventoryA.TryPlaceItem(assets.ammo, new Vector2Int(1, 3), PlacedObjectTypeSO.Dir.Down);
-        inventoryA.TryPlaceItem(assets.medkit, new Vector2Int(1, 0), PlacedObjectTypeSO.Dir.Down);
+        //inventoryA.TryPlaceItem(assets.ammo, new Vector2Int(1, 3), PlacedObjectTypeSO.Dir.Down);
+        //inventoryA.TryPlaceItem(assets.medkit, new Vector2Int(0, 1), PlacedObjectTypeSO.Dir.Down);
+
+        inventoryA.TryPlaceItem(assets.katana, new Vector2Int(1, 0), PlacedObjectTypeSO.Dir.Down);
+
 
         // Spawn trên b?ng B
         inventoryB.TryPlaceItem(assets.pistol, new Vector2Int(0, 0), PlacedObjectTypeSO.Dir.Down);
-        inventoryB.TryPlaceItem(assets.shotgun, new Vector2Int(2, 0), PlacedObjectTypeSO.Dir.Down);
+        inventoryB.TryPlaceItem(assets.rifle, new Vector2Int(2, 0), PlacedObjectTypeSO.Dir.Down);
     }
 }
