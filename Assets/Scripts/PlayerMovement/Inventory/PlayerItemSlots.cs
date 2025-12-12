@@ -3,153 +3,79 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
+/// <summary>
+/// Hub trung tâm cho tất cả ItemEffect:
+/// - Giữ danh sách slot item đang equip (Active Loadout bên trái).
+/// - Cung cấp truy cập tới Player / OilLamp / Dash / Ranged / Melee / Health / MainFovLight
+///   để ItemEffect có thể chỉnh stat.
+/// - Quản lý hàng chờ BurnEffect (pendingBurnEffects) để nổ sau khi đóng Inventory.
+/// </summary>
 public class PlayerItemSlots : MonoBehaviour
 {
+    #region Nested types
+
+    [System.Serializable]
+    public class ItemSlot
+    {
+        [Tooltip("Item đang được equip ở slot này (ScriptableObject).")]
+        public ItemData item;
+    }
+
+    #endregion
+
+    #region Inspector
+
     [Header("Core refs")]
     [SerializeField] private PlayerController player;
     [SerializeField] private OilLamp oilLamp;
     [SerializeField] private DashController dashController;
+    [SerializeField] private AutoAttackRunner autoAttackRunner;
+    [SerializeField] private MeleeAutoRunner meleeAutoRunner;
+    [SerializeField] private PlayerHealth playerHealth;
 
     [Header("Lights (optional)")]
     [SerializeField] private Light2D mainFovLight;
 
-    [Header("Equipped items (2 slots for now)")]
-    [SerializeField] private ItemData[] slots = new ItemData[2];
+    [Header("Equipped items (Active Loadout slots)")]
+    [SerializeField] private ItemSlot[] slots = new ItemSlot[2];
 
-    // Bản snapshot runtime để biết slot nào đã được apply effect.
-    // Dùng để detect khi bạn đổi slots[] trong Inspector lúc đang Play.
-    private ItemData[] _appliedSlots;
+    #endregion
 
+    #region Public accessors (cho ItemEffect dùng)
 
-    // Context cho các Effect s? d?ng
     public PlayerController Player => player;
     public OilLamp OilLamp => oilLamp;
     public DashController Dash => dashController;
+    public AutoAttackRunner RangedRunner => autoAttackRunner;
+    public MeleeAutoRunner MeleeRunner => meleeAutoRunner;
+    public PlayerHealth Health => playerHealth;
     public Light2D MainFovLight => mainFovLight;
 
-    private void Awake()
-    {
-        AutoWire();
+    public IReadOnlyList<ItemSlot> Slots => slots;
 
-        // Khởi tạo snapshot runtime
-        _appliedSlots = new ItemData[slots.Length];
+    #endregion
 
-        // Nếu có assign sẵn item trong Inspector thì áp hiệu ứng luôn
-        for (int i = 0; i < slots.Length; i++)
-        {
-            var item = slots[i];
-            _appliedSlots[i] = item;
-
-            if (item == null) continue;
-
-            foreach (var eff in item.effects)
-                if (eff != null) eff.OnEquip(this);
-        }
-    }
-
-
-    private void AutoWire()
-    {
-        if (!player)
-            player = FindAnyObjectByType<PlayerController>();
-
-        if (!oilLamp)
-            oilLamp = FindAnyObjectByType<OilLamp>();
-
-        if (!dashController)
-            dashController = FindAnyObjectByType<DashController>();
-
-        if (!mainFovLight && oilLamp)
-            mainFovLight = oilLamp.fovLight;
-    }
+    #region Burn queue
 
     /// <summary>
-    /// Equip m?t Item vào slot. Không có switch-case gì c?,
-    /// ch? g?i OnUnequip c?a item c? và OnEquip c?a item m?i.
+    /// Hàng chờ các ItemEffect sẽ OnBurn sau khi đóng Inventory.
     /// </summary>
-    public void Equip(int slotIndex, ItemData newItem)
-    {
-        if (slotIndex < 0 || slotIndex >= slots.Length) return;
-
-        // 1) Un-equip item cũ
-        var old = slots[slotIndex];
-        if (old != null)
-        {
-            foreach (var eff in old.effects)
-                if (eff != null) eff.OnUnequip(this);
-        }
-
-        // 2) Gán item mới
-        slots[slotIndex] = newItem;
-
-        // Cập nhật snapshot runtime
-        if (_appliedSlots == null || _appliedSlots.Length != slots.Length)
-            _appliedSlots = new ItemData[slots.Length];
-        _appliedSlots[slotIndex] = newItem;
-
-        // 3) Apply hiệu ứng item mới
-        if (newItem != null)
-        {
-            foreach (var eff in newItem.effects)
-                if (eff != null) eff.OnEquip(this);
-        }
-    }
-
-
-    /// <summary>
-    /// Burn item trong slot: g?i OnBurn, sau ?ó OnUnequip và clear slot.
-    /// </summary>
-    public void Burn(int slotIndex)
-    {
-        if (slotIndex < 0 || slotIndex >= slots.Length) return;
-
-        var item = slots[slotIndex];
-        if (item == null) return;
-
-        // Burn
-        foreach (var eff in item.effects)
-            if (eff != null) eff.OnBurn(this);
-
-        // Un-equip (để trả lại state gốc nếu effect có lưu)
-        foreach (var eff in item.effects)
-            if (eff != null) eff.OnUnequip(this);
-
-        slots[slotIndex] = null;
-
-        if (_appliedSlots != null && slotIndex >= 0 && slotIndex < _appliedSlots.Length)
-            _appliedSlots[slotIndex] = null;
-    }
-
-
-    private void LateUpdate()
-    {
-        // Nếu chưa khởi tạo (trường hợp nào đó), tạo lại
-        if (_appliedSlots == null || _appliedSlots.Length != slots.Length)
-            _appliedSlots = new ItemData[slots.Length];
-
-        // Nếu phát hiện slots[i] khác với cái đã apply → gọi Equip để apply effect
-        for (int i = 0; i < slots.Length; i++)
-        {
-            if (slots[i] != _appliedSlots[i])
-            {
-                // Gọi Equip sẽ:
-                // - OnUnequip item cũ (nếu có)
-                // - Gán item mới
-                // - OnEquip effect mới
-                Equip(i, slots[i]);
-            }
-        }
-    }
-
     private readonly Queue<ItemEffect> _pendingBurnEffects = new Queue<ItemEffect>();
 
-    /// <summary>
-    /// Kiểm tra còn hiệu ứng Burn chờ hay không (cho UI nếu cần).
-    /// </summary>
     public bool HasPendingBurnEffects => _pendingBurnEffects.Count > 0;
 
     /// <summary>
-    /// Xóa toàn bộ queue (dùng khi cancel batch burn hoặc làm mới).
+    /// Được InventoryManager gọi khi đốt đồ (Batch Burn).
+    /// Chỉ enqueue, chưa thực thi ngay.
+    /// </summary>
+    public void EnqueuePendingBurnEffect(ItemEffect effect)
+    {
+        if (effect == null) return;
+        _pendingBurnEffects.Enqueue(effect);
+    }
+
+    /// <summary>
+    /// Xoá sạch hàng chờ Burn (nếu cần).
     /// </summary>
     public void ClearPendingBurnEffects()
     {
@@ -157,19 +83,9 @@ public class PlayerItemSlots : MonoBehaviour
     }
 
     /// <summary>
-    /// Đẩy thêm 1 effect vào queue burn.
-    /// Được gọi từ InventoryManager.BurnSelectedSlots().
-    /// </summary>
-    public void EnqueuePendingBurnEffect(ItemEffect effect)
-    {
-        if (effect != null)
-            _pendingBurnEffects.Enqueue(effect);
-    }
-
-    /// <summary>
-    /// Coroutine thực thi queue Burn sau khi Unpause:
-    /// - Đợi 0.5s cho người chơi aim.
-    /// - Mỗi hiệu ứng bắn cách nhau 0.2s (machine-gun pacing).
+    /// Coroutine thực thi lần lượt các hiệu ứng Burn sau khi đóng Inventory.
+    /// - 0.5s đầu cho player chỉnh hướng.
+    /// - Sau đó mỗi hiệu ứng bắn cách nhau 0.2s.
     /// </summary>
     public IEnumerator ExecuteBurnQueue()
     {
@@ -181,41 +97,180 @@ public class PlayerItemSlots : MonoBehaviour
 
         while (_pendingBurnEffects.Count > 0)
         {
-            var effect = _pendingBurnEffects.Dequeue();
-            if (effect != null)
+            var eff = _pendingBurnEffects.Dequeue();
+            if (eff != null)
             {
-                // OnBurn sẽ đọc hướng từ PlayerItemSlots.Player.Facing
-                effect.OnBurn(this);
+                eff.OnBurn(this);
             }
 
-            yield return new WaitForSeconds(0.2f);
+            if (_pendingBurnEffects.Count > 0)
+                yield return new WaitForSeconds(0.2f);
+        }
+    }
+
+    #endregion
+
+    #region Unity lifecycle
+
+    private void Awake()
+    {
+        // Auto-wire một phần nếu quên gán trong Inspector
+        if (player == null) player = GetComponent<PlayerController>();
+        if (oilLamp == null) oilLamp = FindAnyObjectByType<OilLamp>();
+        if (dashController == null) dashController = GetComponent<DashController>();
+        if (autoAttackRunner == null) autoAttackRunner = GetComponentInChildren<AutoAttackRunner>();
+        if (meleeAutoRunner == null) meleeAutoRunner = GetComponentInChildren<MeleeAutoRunner>();
+        if (playerHealth == null) playerHealth = GetComponent<PlayerHealth>();
+    }
+
+    private void OnEnable()
+    {
+        // Khi scene load, áp dụng lại tất cả item đã gán sẵn trong slot.
+        ReapplyAllEquipped();
+    }
+
+    private void OnDisable()
+    {
+        // Khi object disable, trả lại toàn bộ stat gốc.
+        UnequipAllSilently();
+    }
+
+    #endregion
+
+    #region Equip / Unequip API
+
+    /// <summary>
+    /// Dùng khi bạn muốn equip runtime (nhặt đồ, đổi loadout).
+    /// Gọi đúng OnUnequip của item cũ và OnEquip của item mới.
+    /// </summary>
+    public void EquipRuntime(int slotIndex, ItemData newItem)
+    {
+        if (slots == null || slotIndex < 0 || slotIndex >= slots.Length)
+            return;
+
+        var slot = slots[slotIndex];
+        if (slot == null)
+        {
+            slot = new ItemSlot();
+            slots[slotIndex] = slot;
+        }
+
+        var oldItem = slot.item;
+        if (oldItem == newItem)
+            return;
+
+        // 1) OnUnequip item cũ
+        if (oldItem != null && oldItem.effects != null)
+        {
+            foreach (var eff in oldItem.effects)
+            {
+                if (eff != null) eff.OnUnequip(this);
+            }
+        }
+
+        // 2) Gán item mới
+        slot.item = newItem;
+
+        // 3) OnEquip item mới
+        if (newItem != null && newItem.effects != null)
+        {
+            foreach (var eff in newItem.effects)
+            {
+                if (eff != null) eff.OnEquip(this);
+            }
         }
     }
 
     /// <summary>
-    /// Trả về toàn bộ ItemData đang được equip trong các slot của Player.
-    /// Dùng cho ActiveLoadoutUI để hiển thị loadout bên trái.
+    /// Tháo item khỏi slot, gọi OnUnequip nếu có.
     /// </summary>
-    public ItemData[] DebugGetAllItems()
+    public void UnequipSlot(int slotIndex)
     {
-        // Nếu không muốn cho code ngoài sửa trực tiếp mảng slots,
-        // có thể clone ra mảng mới:
-        if (slots == null)
-            return System.Array.Empty<ItemData>();
+        if (slots == null || slotIndex < 0 || slotIndex >= slots.Length)
+            return;
 
-        var copy = new ItemData[slots.Length];
-        for (int i = 0; i < slots.Length; i++)
-            copy[i] = slots[i];
-        return copy;
+        var slot = slots[slotIndex];
+        if (slot == null || slot.item == null)
+            return;
+
+        var oldItem = slot.item;
+        if (oldItem.effects != null)
+        {
+            foreach (var eff in oldItem.effects)
+            {
+                if (eff != null) eff.OnUnequip(this);
+            }
+        }
+
+        slot.item = null;
     }
-
 
     /// <summary>
-    /// Cho ItemEffect m??n Coroutine mà không c?n bi?t ??n MonoBehaviour.
+    /// Equip lại tất cả item đang gán sẵn trong Inspector (dùng khi start scene).
     /// </summary>
-    public void RunCoroutine(System.Collections.IEnumerator routine)
+    private void ReapplyAllEquipped()
     {
-        if (routine != null)
-            StartCoroutine(routine);
+        if (slots == null) return;
+
+        foreach (var slot in slots)
+        {
+            if (slot == null || slot.item == null) continue;
+
+            var item = slot.item;
+            if (item.effects == null) continue;
+
+            foreach (var eff in item.effects)
+            {
+                if (eff != null) eff.OnEquip(this);
+            }
+        }
     }
+
+    /// <summary>
+    /// UnEquip tất cả item nhưng không xoá khỏi slot (dùng khi OnDisable).
+    /// </summary>
+    private void UnequipAllSilently()
+    {
+        if (slots == null) return;
+
+        foreach (var slot in slots)
+        {
+            if (slot == null || slot.item == null) continue;
+
+            var item = slot.item;
+            if (item.effects == null) continue;
+
+            foreach (var eff in item.effects)
+            {
+                if (eff != null) eff.OnUnequip(this);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Utilities
+
+    /// <summary>
+    /// Cho phép ItemEffect chạy coroutine thông qua PlayerItemSlots.
+    /// Ví dụ: target.RunCoroutine(...).
+    /// </summary>
+    public Coroutine RunCoroutine(IEnumerator routine)
+    {
+        if (routine == null) return null;
+        return StartCoroutine(routine);
+    }
+
+    /// <summary>
+    /// Lấy ItemData đang được equip ở slot (có thể null).
+    /// </summary>
+    public ItemData GetEquippedItem(int slotIndex)
+    {
+        if (slots == null || slotIndex < 0 || slotIndex >= slots.Length)
+            return null;
+
+        return slots[slotIndex]?.item;
+    }
+
+    #endregion
 }

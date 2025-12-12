@@ -18,6 +18,9 @@ public class ItemTetrisSO : PlacedObjectTypeSO
     [Tooltip("Sprite 1x1 hiển thị khi item ở trong Active Loadout slot.")]
     public Sprite loadoutSprite;
 
+    [Header("Gameplay Data (optional)")]
+    public ItemData itemData;
+
     public static void CreateVisualGrid(Transform visualParentTransform, ItemTetrisSO itemTetrisSO, float cellSize)
     {
         Transform visualTransform = Object.Instantiate(

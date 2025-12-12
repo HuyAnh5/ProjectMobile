@@ -87,6 +87,7 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
     // -------------------------------------------------------------
     // 2) DROP TỪ LOADOUT → Grid / Burn
     // -------------------------------------------------------------
+    // 2) DROP TỪ LOADOUT → Grid / Burn / Slot khác
     public bool TryHandleDropFromLoadout(
         PointerEventData eventData,
         LoadoutSlot fromSlot,
@@ -100,10 +101,46 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
         if (IsPointerOverBurnZone(screenPos))
         {
             Debug.Log($"[Burn] Đã đốt item {itemSO.name} từ slot {fromSlot.name}");
-            return true; // slot sẽ Clear() trong handler
+            return true; // LoadoutSlotDragHandler sẽ Clear() slot
         }
 
-        // 2) Thử đặt vào một InventoryTetris
+        // 2) Thả lên slot loadout khác? (swap/move giữa các slot)
+        LoadoutSlot targetSlot = GetSlotUnderPointer(screenPos);
+        if (targetSlot != null)
+        {
+            // Thả lại chính slot cũ → coi như không làm gì, icon sẽ hiện lại
+            if (targetSlot == fromSlot)
+                return false;
+
+            // Sai loại slot (Weapon vs Item) → bỏ qua, để xử lý tiếp như drop hụt
+            if (!targetSlot.Accepts(itemSO))
+                return false;
+
+            // Đúng loại → swap/move giữa 2 slot
+            ItemTetrisSO targetItem = targetSlot.CurrentItem;
+
+            // Target nhận item đang kéo
+            targetSlot.Equip(itemSO);
+
+            if (targetItem != null)
+            {
+                // Swap: fromSlot nhận lại item cũ của target
+                fromSlot.Equip(targetItem);
+            }
+            else
+            {
+                // Move: target trước đó trống → fromSlot trở thành trống
+                fromSlot.Clear();
+            }
+
+            Debug.Log($"[Loadout] Move/Swap {itemSO.name} từ {fromSlot.name} sang {targetSlot.name}");
+
+            // Trả về false để LoadoutSlotDragHandler KHÔNG Clear slot,
+            // mà chỉ gọi SetIconVisible(true) theo state mới của fromSlot.
+            return false;
+        }
+
+        // 3) Thử đặt vào một InventoryTetris (StorageGrid / ExternalGrid)
         foreach (var inventory in inventories)
         {
             if (!inventory) continue;
@@ -123,25 +160,20 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
             // Cell gần nhất dưới chuột
             Vector2Int mouseGridPos = inventory.GetGridPosition(anchoredPosition);
 
-            // Chuột phải đang nằm trên 1 ô hợp lệ của grid
             if (!inventory.IsValidGridPosition(mouseGridPos))
                 continue;
 
             bool placed = false;
             var dir = PlacedObjectTypeSO.Dir.Down;
 
-            // Quét quanh cell chuột trong vùng kích thước item (width × height)
-            // để tìm origin sao cho shape của item bao phủ cell chuột.
+            // Soft–snap: quét quanh cell chuột
             for (int ox = -(itemSO.width - 1); ox <= 0 && !placed; ox++)
             {
                 for (int oy = -(itemSO.height - 1); oy <= 0 && !placed; oy++)
                 {
                     Vector2Int origin = new Vector2Int(mouseGridPos.x + ox, mouseGridPos.y + oy);
 
-                    // Lấy danh sách cell mà item chiếm với origin này
                     var cells = itemSO.GetGridPositionList(origin, dir);
-
-                    // Nếu cell chuột không nằm trong shape thì bỏ qua origin này
                     bool coversMouseCell = false;
                     foreach (var c in cells)
                     {
@@ -154,7 +186,6 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
                     if (!coversMouseCell)
                         continue;
 
-                    // Thử place; TryPlaceItem tự kiểm tra tràn lưới / va chạm
                     if (inventory.TryPlaceItem(itemSO, origin, dir))
                     {
                         Debug.Log($"[Loadout→Grid] Đặt {itemSO.name} vào {inventory.name} tại {origin}");
@@ -165,12 +196,12 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
 
             if (placed)
             {
-                // Đã drop thành công vào inventory này
-                return true; // LoadoutSlotDragHandler sẽ Clear() slot
+                // Drop thành công vào grid → LoadoutSlotDragHandler sẽ Clear() fromSlot
+                return true;
             }
         }
 
-        // Không inventory nào nhận được → caller giữ item lại trong slot
+        // Không inventory nào nhận → item ở lại slot (handler sẽ SetIconVisible(true))
         return false;
     }
 

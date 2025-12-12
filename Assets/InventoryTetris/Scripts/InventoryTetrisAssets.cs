@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,12 +22,31 @@ public class InventoryTetrisAssets : MonoBehaviour {
     public ItemTetrisSO shotgun;
     public ItemTetrisSO money;
 
-    public ItemTetrisSO GetItemTetrisSOFromName(string itemTetrisSOName) {
-        foreach (ItemTetrisSO itemTetrisSO in itemTetrisSOArray) {
-            if (itemTetrisSO.name == itemTetrisSOName) {
-                return itemTetrisSO;
-            }
+    //public ItemTetrisSO GetItemTetrisSOFromName(string itemTetrisSOName) {
+    //    foreach (ItemTetrisSO itemTetrisSO in itemTetrisSOArray) {
+    //        if (itemTetrisSO.name == itemTetrisSOName) {
+    //            return itemTetrisSO;
+    //        }
+    //    }
+    //    return null;
+    //}
+
+
+    public ItemTetrisSO GetItemTetrisSOFromName(string itemTetrisSOName)
+    {
+        if (itemTetrisSOArray == null)
+        {
+            Debug.LogError("InventoryTetrisAssets: itemTetrisSOArray is NULL");
+            return null;
         }
+
+        foreach (ItemTetrisSO itemTetrisSO in itemTetrisSOArray)
+        {
+            if (itemTetrisSO == null) continue; // <-- quan trọng
+            if (itemTetrisSO.name == itemTetrisSOName) return itemTetrisSO;
+        }
+
+        Debug.LogWarning($"Missing ItemTetrisSO in Assets list: {itemTetrisSOName}");
         return null;
     }
 

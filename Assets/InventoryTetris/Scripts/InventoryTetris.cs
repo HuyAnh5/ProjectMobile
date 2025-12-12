@@ -210,13 +210,25 @@ public class InventoryTetris : MonoBehaviour {
         return JsonUtility.ToJson(new ListAddItemTetris { addItemTetrisList = addItemTetrisList });
     }
 
-    public void Load(string loadString) {
-        ListAddItemTetris listAddItemTetris = JsonUtility.FromJson<ListAddItemTetris>(loadString);
+    //public void Load(string loadString) {
+    //    ListAddItemTetris listAddItemTetris = JsonUtility.FromJson<ListAddItemTetris>(loadString);
 
-        foreach (AddItemTetris addItemTetris in listAddItemTetris.addItemTetrisList) {
-            TryPlaceItem(InventoryTetrisAssets.Instance.GetItemTetrisSOFromName(addItemTetris.itemTetrisSOName), addItemTetris.gridPosition, addItemTetris.dir);
+    //    foreach (AddItemTetris addItemTetris in listAddItemTetris.addItemTetrisList) {
+    //        TryPlaceItem(InventoryTetrisAssets.Instance.GetItemTetrisSOFromName(addItemTetris.itemTetrisSOName), addItemTetris.gridPosition, addItemTetris.dir);
+    //    }
+    //}
+
+    public void Load(string loadString)
+    {
+        var listAddItemTetris = JsonUtility.FromJson<ListAddItemTetris>(loadString);
+        foreach (var addItemTetris in listAddItemTetris.addItemTetrisList)
+        {
+            var so = InventoryTetrisAssets.Instance.GetItemTetrisSOFromName(addItemTetris.itemTetrisSOName);
+            if (so == null) continue;
+            TryPlaceItem(so, addItemTetris.gridPosition, addItemTetris.dir);
         }
     }
+
 
     // Kiểm tra 1 ô (x,y) có được phép dùng theo shape hay không
     private bool IsCellEnabled(Vector2Int gridPosition)

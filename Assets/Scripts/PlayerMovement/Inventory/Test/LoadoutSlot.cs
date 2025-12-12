@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 using UnityEngine.UI;
 
 public enum LoadoutSlotType
@@ -18,6 +19,7 @@ public class LoadoutSlot : MonoBehaviour
     [Header("Runtime")]
     [SerializeField] private ItemTetrisSO currentItem;
 
+    public Action<LoadoutSlot> OnContentChanged;
     public bool IsEmpty => currentItem == null;
     public ItemTetrisSO CurrentItem => currentItem;
 
@@ -42,12 +44,14 @@ public class LoadoutSlot : MonoBehaviour
     {
         currentItem = item;
         RefreshIcon();
+        OnContentChanged?.Invoke(this);
     }
 
     public void Clear()
     {
         currentItem = null;
         RefreshIcon();
+        OnContentChanged?.Invoke(this);
     }
 
     public void RefreshIcon()
