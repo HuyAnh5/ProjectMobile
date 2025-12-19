@@ -17,3 +17,8 @@ MonoBehaviour:
   visual: {fileID: 2148587555689196983, guid: d4368a92b3f097e48847e99ea01b7e0f, type: 3}
   width: 5
   height: 2
+  localCells: []
+  isWeapon: 1
+  loadoutSprite: {fileID: 21300000, guid: b638923084c9fb145bded1af37ff7dc3, type: 3}
+  itemData: {fileID: 0}
+  weaponRuntimePrefab: {fileID: 8492040713135560560, guid: 02d65329bdbe67a4cbdc13fbc992d591, type: 3}

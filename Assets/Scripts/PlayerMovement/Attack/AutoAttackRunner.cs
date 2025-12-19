@@ -110,6 +110,17 @@ public class AutoAttackRunner : MonoBehaviour
     [Header("Toggle / Debug")]
     [SerializeField] private bool enabledModule = true;
 
+    public void SetFiringAllowed(bool allowed)
+    {
+        enabledModule = allowed;
+    }
+
+    public bool IsFiringAllowed()
+    {
+        return enabledModule;
+    }
+
+
     // chống “xả đạn dồn”
     private float nextFireTime = 0f;
 
@@ -402,6 +413,7 @@ public class AutoAttackRunner : MonoBehaviour
 
     void OnEnable()
     {
+        AutoWire(); // đảm bảo oilLamp/player/fireOrigin đã có trước khi register drain
         if (oilLamp && oilConsumePerSec > 0f)
             oilLamp.RegisterExtraDrain(oilConsumePerSec);
     }

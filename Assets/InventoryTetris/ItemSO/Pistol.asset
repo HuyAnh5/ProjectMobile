@@ -22,4 +22,6 @@ MonoBehaviour:
   - {x: 0, y: 1}
   - {x: 1, y: 1}
   isWeapon: 1
-  loadoutSprite: {fileID: 21300000, guid: 7c1835c831cc33045b3e15f614ed66d7, type: 3}
+  loadoutSprite: {fileID: 21300000, guid: 333fa779f749fe34bb9b6aa1cba8c78d, type: 3}
+  itemData: {fileID: 0}
+  weaponRuntimePrefab: {fileID: 7036465773690593380, guid: ecf7ea5f37cfd9a438245a9ca8c3ccec, type: 3}

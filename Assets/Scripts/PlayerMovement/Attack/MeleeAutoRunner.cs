@@ -61,6 +61,26 @@ public class MeleeAutoRunner : MonoBehaviour
     [Tooltip("Bonus knockback impulse applied on hit (from items).")]
     [SerializeField] private float knockbackForce = 0f;
 
+    [SerializeField] private bool combatEnabled = true;
+
+    public void SetCombatEnabled(bool enabled)
+    {
+        combatEnabled = enabled;
+
+        // reset state để khỏi “nhớ mục tiêu” khi bật lại
+        if (!combatEnabled)
+        {
+            _currentTarget = null;
+            _stayTimer = 0f;
+        }
+    }
+
+    public bool IsCombatEnabled()
+    {
+        return combatEnabled;
+    }
+
+
 
     // Public properties so items can adjust timing, cost, damage
     public float RequiredStayTimeBeforeSwing
@@ -243,6 +263,10 @@ public class MeleeAutoRunner : MonoBehaviour
 
     private void Update()
     {
+        // NEW: nếu bị orchestrator tắt
+        if (!combatEnabled)
+            return;
+
         // Guard: need at least a player reference to work
         if (!player)
             return;
@@ -272,6 +296,7 @@ public class MeleeAutoRunner : MonoBehaviour
         // 5) All conditions satisfied -> commit swing
         StartSwing(_lastAttackDir);
     }
+
 
     // ----------------------------------------------------------------------
     // Target & timing

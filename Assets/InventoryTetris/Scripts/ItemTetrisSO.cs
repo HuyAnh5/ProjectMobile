@@ -21,6 +21,10 @@ public class ItemTetrisSO : PlacedObjectTypeSO
     [Header("Gameplay Data (optional)")]
     public ItemData itemData;
 
+    [Header("Weapon Runtime (optional)")]
+    public GameObject weaponRuntimePrefab; // prefab có AutoAttackRunner hoặc MeleeAutoRunner
+
+
     public static void CreateVisualGrid(Transform visualParentTransform, ItemTetrisSO itemTetrisSO, float cellSize)
     {
         Transform visualTransform = Object.Instantiate(
