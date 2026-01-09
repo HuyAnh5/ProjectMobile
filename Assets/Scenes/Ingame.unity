@@ -749,7 +749,7 @@ MonoBehaviour:
   itemTetrisSOArray:
   - {fileID: 11400000, guid: 17d2d197e5567d44ebfb0b9a2c1d2285, type: 2}
   - {fileID: 11400000, guid: 54269fedf7f5f984baebe33f17f3cbe1, type: 2}
-  - {fileID: 0}
+  - {fileID: 11400000, guid: 32ab6ed60b5952c4f935522a536a62d5, type: 2}
   ammo: {fileID: 11400000, guid: 17d2d197e5567d44ebfb0b9a2c1d2285, type: 2}
   grenade: {fileID: 11400000, guid: 9ab5d4282cbe1c847a7d2196e6eca1ab, type: 2}
   katana: {fileID: 11400000, guid: 9e77a741d89106544b052d1f71f3cd94, type: 2}
@@ -7737,6 +7737,13 @@ MonoBehaviour:
   inventoryTetrisList:
   - {fileID: 2142992427}
   - {fileID: 1041500034}
+  previewValidColor: {r: 0, g: 1, b: 0, a: 0.25}
+  previewInvalidColor: {r: 1, g: 0, b: 0, a: 0.25}
+  snapBias: 0.4
+  debugOverlay: 0
+  debugLogs: 0
+  toggleOverlayKey: 49
+  toggleLogsKey: 50
 --- !u!1 &1865488376
 GameObject:
   m_ObjectHideFlags: 0

@@ -49,6 +49,14 @@ MonoBehaviour:
   oilLamp: {fileID: 0}
   lockOn: {fileID: 0}
   module: {fileID: 11400000, guid: 051de54da06a5254eb2245f39dcd386f, type: 2}
+  damageMultiplier: 1
+  fireRateMultiplier: 1
+  projectileSpeedMultiplier: 1
+  projectileLifetimeMultiplier: 1
+  minAttackRange: 14
+  maxAttackRange: -1
+  baseKnockbackForce: 1.72
+  knockbackBonus: 3.34
   oilConsumePerSec: 1
   oilCostPerShot: 1
   enemyMask:

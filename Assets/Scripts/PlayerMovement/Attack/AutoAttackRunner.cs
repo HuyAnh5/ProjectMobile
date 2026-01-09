@@ -26,6 +26,14 @@ public class AutoAttackRunner : MonoBehaviour
     [Tooltip("Multiplier cho thời gian sống của đạn (projectileLifetime).")]
     [SerializeField] private float projectileLifetimeMultiplier = 1f;
 
+    [Header("Attack Range Gate (weapon-specific)")]
+    [Tooltip("Khoảng cách tối thiểu để được bắn. (Sniper: đặt >0 để không bắn gần)")]
+    [SerializeField, Min(0f)] private float minAttackRange = 0f;
+
+    [Tooltip("Khoảng cách tối đa để được bắn. <0 nghĩa là dùng theo FOV radius của đèn.")]
+    [SerializeField] private float maxAttackRange = -1f;
+
+
     [Header("Knockback")]
     [Tooltip("Knockback cơ bản của vũ khí tầm xa (không có item).")]
     [SerializeField] private float baseKnockbackForce = 0f;
@@ -87,6 +95,7 @@ public class AutoAttackRunner : MonoBehaviour
     [SerializeField, Min(0f)] private float oilConsumePerSec = 0.5f;
 
     [Header("Fire Rules")]
+    [SerializeField] private bool useOilCostPerShot = true;
     [SerializeField, Min(0.01f)] private float oilCostPerShot = 1.0f;
     [SerializeField] private LayerMask enemyMask;       // Layer=Enemy
     [SerializeField] private bool alignProjectileRotation = true;
@@ -231,36 +240,57 @@ public class AutoAttackRunner : MonoBehaviour
         var fov = oilLamp.fovLight;
         if (!fov) return false;
 
+        // Range theo đèn (FOV) + grace
         float rFov = fov.pointLightOuterRadius + Mathf.Max(0f, radiusGrace);
+
+        // Range hiệu lực của weapon: kẹp theo maxAttackRange nếu > 0
+        float rEff = rFov;
+        if (maxAttackRange > 0f)
+            rEff = Mathf.Min(rEff, maxAttackRange);
+
         float halfAngle = fov.pointLightOuterAngle * 0.5f;
 
         Vector2 origin = fireOrigin.position;
         Vector2 axis = GetFovForward(fov).normalized;
-        if (axis.sqrMagnitude < 0.0001f) axis = (player && player.Facing.sqrMagnitude > 0.0001f) ? player.Facing.normalized : Vector2.up;
-        if (Mathf.Abs(axisOffsetDeg) > 0.001f) axis = Rotate(axis, axisOffsetDeg).normalized;
+        if (axis.sqrMagnitude < 0.0001f)
+            axis = (player && player.Facing.sqrMagnitude > 0.0001f) ? player.Facing.normalized : Vector2.up;
+        if (Mathf.Abs(axisOffsetDeg) > 0.001f)
+            axis = Rotate(axis, axisOffsetDeg).normalized;
 
-        // 1) Ưu tiên mục tiêu LOCK nếu còn trong FOV và CÓ LOS
+        // helper: check dist gate
+        bool PassDistGate(Vector2 targetPos)
+        {
+            float d = Vector2.Distance(origin, targetPos);
+            if (d < minAttackRange) return false;
+            if (d > rEff + 0.0001f) return false;
+            return true;
+        }
+
+        // 1) Ưu tiên mục tiêu LOCK nếu còn trong FOV + pass dist gate + CÓ LOS
         if (lockOn && lockOn.CurrentTarget)
         {
             var t = lockOn.CurrentTarget;
-            if (t && t.gameObject.activeInHierarchy && IsInFOV(origin, axis, t.position, rFov, halfAngle, angleGraceDeg))
+            if (t && t.gameObject.activeInHierarchy)
             {
-                if (HasLOS(origin, (Vector2)t.position))
+                Vector2 tp = t.position;
+                if (PassDistGate(tp) && IsInFOV(origin, axis, tp, rEff, halfAngle, angleGraceDeg))
                 {
-                    dir = ((Vector2)t.position - origin).normalized;
-                    gizLastFrom = origin; gizLastTo = t.position; gizLastLosClear = true;
-                    return true;
-                }
-                else
-                {
-                    // lưu gizmo blocked
-                    gizLastFrom = origin; gizLastTo = t.position; gizLastLosClear = false;
+                    if (HasLOS(origin, tp))
+                    {
+                        dir = (tp - origin).normalized;
+                        gizLastFrom = origin; gizLastTo = tp; gizLastLosClear = true;
+                        return true;
+                    }
+                    else
+                    {
+                        gizLastFrom = origin; gizLastTo = tp; gizLastLosClear = false;
+                    }
                 }
             }
         }
 
-        // 2) Tìm mục tiêu TỐT NHẤT trong FOV và CÓ LOS
-        var hits = Physics2D.OverlapCircleAll(origin, rFov, enemyMask);
+        // 2) Tìm mục tiêu TỐT NHẤT trong FOV + pass dist gate + CÓ LOS
+        var hits = Physics2D.OverlapCircleAll(origin, rEff, enemyMask);
         if (hits == null || hits.Length == 0) return false;
 
         Transform best = null;
@@ -275,23 +305,24 @@ public class AutoAttackRunner : MonoBehaviour
 
             Vector2 toT = (Vector2)t.position - origin;
             float dist = toT.magnitude;
-            if (dist < 0.0001f || dist > rFov + 0.0001f) continue;
+
+            // dist gate (min + rEff)
+            if (dist < 0.0001f || dist > rEff + 0.0001f) continue;
+            if (dist < minAttackRange) continue;
 
             Vector2 dNorm = toT / dist;
             float dot = Vector2.Dot(axis, dNorm);
-            if (halfAngle < 179.5f && dot < cosThreshold) continue; // ngoài nón
+            if (halfAngle < 179.5f && dot < cosThreshold) continue;
 
-            // LOS: chỉ chấp nhận mục tiêu nếu KHÔNG có vật cản giữa Player và Enemy
             if (!HasLOS(origin, (Vector2)t.position))
             {
-                // vẽ gizmo blocked cho mục tiêu bị chặn
                 gizLastFrom = origin; gizLastTo = t.position; gizLastLosClear = false;
                 continue;
             }
 
-            // chấm điểm: bám trục nón + hơi ưu tiên gần
+            // chấm điểm: bám trục nón + hơi ưu tiên gần (trong phạm vi rEff)
             float axisScore = dot;
-            float distScore = 1f - Mathf.Clamp01(dist / rFov);
+            float distScore = 1f - Mathf.Clamp01(dist / Mathf.Max(0.001f, rEff));
             float score = 0.75f * axisScore + 0.25f * distScore;
 
             if (score > bestScore) { bestScore = score; best = t; }
@@ -303,6 +334,7 @@ public class AutoAttackRunner : MonoBehaviour
         gizLastFrom = origin; gizLastTo = best.position; gizLastLosClear = true;
         return true;
     }
+
 
     bool HasLOS(Vector2 origin, Vector2 target)
     {
@@ -384,7 +416,7 @@ public class AutoAttackRunner : MonoBehaviour
         if (dd)
         {
             float finalDamage = module.damage * damageMultiplier * _nextShotMultiplier;
-            float finalKnockback = TotalKnockbackForce; // hoặc + module.baseKnockback nếu bạn thêm field đó
+            float finalKnockback = TotalKnockbackForce;
 
             ApplyDamageTeamAndKnockback(dd, finalDamage, module.team, finalKnockback);
         }
@@ -392,8 +424,8 @@ public class AutoAttackRunner : MonoBehaviour
         // viên này xong thì reset buff "next shot"
         _nextShotMultiplier = 1f;
 
-        // nếu vẫn muốn trừ dầu/viên:
-        if (oilLamp && oilCostPerShot > 0f)
+        // Trừ dầu theo viên (tùy vũ khí bật/tắt)
+        if (oilLamp && useOilCostPerShot && oilCostPerShot > 0f)
             oilLamp.DrainOil(oilCostPerShot);
     }
 
@@ -426,29 +458,47 @@ public class AutoAttackRunner : MonoBehaviour
 
 
     // ====== Gizmos ======
+    // ====== Gizmos ======
     void OnDrawGizmos()
     {
         if (!drawGizmos || !oilLamp || !oilLamp.fovLight || !fireOrigin) return;
 
-        // vẽ trục nón
+        // trục nón
         var axis = GetFovForward(oilLamp.fovLight).normalized;
         if (Mathf.Abs(axisOffsetDeg) > 0.001f) axis = Rotate(axis, axisOffsetDeg).normalized;
-        float r = oilLamp.fovLight.pointLightOuterRadius;
-        Vector3 from = fireOrigin.position;
-        Gizmos.color = gizFovAxis;
-        Gizmos.DrawLine(from, from + (Vector3)axis * r);
 
-        // vẽ LOS của mục tiêu vừa chọn/đánh giá gần nhất
+        float rFov = oilLamp.fovLight.pointLightOuterRadius;
+        float rEff = rFov;
+        if (maxAttackRange > 0f)
+            rEff = Mathf.Min(rEff, maxAttackRange);
+
+        Vector3 from = fireOrigin.position;
+
+        Gizmos.color = gizFovAxis;
+        Gizmos.DrawLine(from, from + (Vector3)axis * rEff);
+
+        // Vẽ vòng range hiệu lực (max)
+        Gizmos.color = new Color(1f, 1f, 0.2f, 0.8f);
+        Gizmos.DrawWireSphere(from, rEff);
+
+        // Vẽ vòng min range (sniper “không bắn gần”)
+        if (minAttackRange > 0.01f)
+        {
+            Gizmos.color = new Color(1f, 0.5f, 0.2f, 0.8f);
+            Gizmos.DrawWireSphere(from, minAttackRange);
+        }
+
+        // LOS line gần nhất
         if (gizLastTo != Vector2.zero)
         {
             Gizmos.color = gizLastLosClear ? gizLosClear : gizLosBlocked;
             Gizmos.DrawLine(gizLastFrom, gizLastTo);
             if (losUseCircleCast && losRadius > 0f)
             {
-                // vẽ vòng tròn nhỏ tại đầu đường để thấy bán kính LOS
                 Gizmos.DrawWireSphere(gizLastFrom, losRadius);
                 Gizmos.DrawWireSphere(gizLastTo, losRadius * 0.7f);
             }
         }
     }
+
 }

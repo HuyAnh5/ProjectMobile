@@ -42,18 +42,19 @@ public class InventoryUIController : MonoBehaviour
             inventoryGroup.blocksRaycasts = open;
         }
 
-        Cursor.visible = open;
+        // FIX: luôn hiển thị cursor (cả khi gameplay)
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         Time.timeScale = open ? 0f : 1f;
 
         if (!open)
         {
-            // đóng inventory => commit external:
-            // - nếu đang mở container => save vào container
-            // - nếu không => spawn hộp dưới chân nếu còn đồ
             externalSession?.CommitExternal();
 
             if (playerItemSlots != null && playerItemSlots.HasPendingBurnEffects)
                 StartCoroutine(playerItemSlots.ExecuteBurnQueue());
         }
     }
+
 }
