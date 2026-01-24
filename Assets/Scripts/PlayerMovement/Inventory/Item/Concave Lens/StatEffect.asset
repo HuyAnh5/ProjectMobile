@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 17f9d0969317c4149adfc71ca65a1d23, type: 3}
+  m_Name: StatEffect
+  m_EditorClassIdentifier: Assembly-CSharp::StatEffect
+  tooltip: 
+  isCursed: 0
+  modifiers:
+  - stat: 12
+    op: 1
+    value: 6.9
+    applyOnEquip: 1
+    applyOnUnequip: 1
+    applyTempOnBurn: 0
+    burnDuration: 0
+    refreshIfActive: 0
+  - stat: 0
+    op: 1
+    value: 6.9
+    applyOnEquip: 0
+    applyOnUnequip: 0
+    applyTempOnBurn: 1
+    burnDuration: 3
+    refreshIfActive: 0

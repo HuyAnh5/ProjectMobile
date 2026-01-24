@@ -62,6 +62,13 @@ public class PlayerItemSlots : MonoBehaviour
     /// </summary>
     private readonly Queue<ItemEffect> _pendingBurnEffects = new Queue<ItemEffect>();
 
+    [Header("Burn queue timing")]
+    [Tooltip("Delay after closing inventory before the first burn effect fires.")]
+    [Min(0f)][SerializeField] private float burnStartDelay = 0.5f;
+
+    [Tooltip("Delay between burn effects. Spec: ~1.5s (effects are sequential, not stacked).")]
+    [Min(0f)][SerializeField] private float burnBetweenEffectsDelay = 1.5f;
+
     public bool HasPendingBurnEffects => _pendingBurnEffects.Count > 0;
 
     /// <summary>
@@ -84,16 +91,17 @@ public class PlayerItemSlots : MonoBehaviour
 
     /// <summary>
     /// Coroutine thực thi lần lượt các hiệu ứng Burn sau khi đóng Inventory.
-    /// - 0.5s đầu cho player chỉnh hướng.
-    /// - Sau đó mỗi hiệu ứng bắn cách nhau 0.2s.
+    /// - Delay đầu (burnStartDelay) cho player chỉnh hướng.
+    /// - Mỗi hiệu ứng chạy tuần tự (không chồng), cách nhau burnBetweenEffectsDelay.
     /// </summary>
     public IEnumerator ExecuteBurnQueue()
     {
         if (_pendingBurnEffects.Count == 0)
             yield break;
 
-        // Aiming window
-        yield return new WaitForSeconds(0.5f);
+        // Aiming window (after inventory closes)
+        if (burnStartDelay > 0f)
+            yield return new WaitForSeconds(burnStartDelay);
 
         while (_pendingBurnEffects.Count > 0)
         {
@@ -103,8 +111,8 @@ public class PlayerItemSlots : MonoBehaviour
                 eff.OnBurn(this);
             }
 
-            if (_pendingBurnEffects.Count > 0)
-                yield return new WaitForSeconds(0.2f);
+            if (_pendingBurnEffects.Count > 0 && burnBetweenEffectsDelay > 0f)
+                yield return new WaitForSeconds(burnBetweenEffectsDelay);
         }
     }
 

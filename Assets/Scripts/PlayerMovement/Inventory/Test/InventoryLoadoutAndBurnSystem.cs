@@ -16,6 +16,10 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
     [SerializeField] private RectTransform burnZoneRect;
     [SerializeField] private Canvas burnZoneCanvasOverride; // optional
 
+    [Header("Inventory Burn (Session)")]
+    [Tooltip("Optional. If assigned, dragging items into BurnZone will add them to the pending burn session (no oil added until inventory closes).")]
+    [SerializeField] private InventoryBurnSession burnSession;
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -46,8 +50,14 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
         // 1) Burn zone
         if (IsPointerOverBurnZone(screenPos))
         {
+            // Phase 1: remove immediately (no undo) and add to burn session (pending oil)
+            if (burnSession != null)
+            {
+                // ItemTetrisSO is expected to hold ItemData for both weapons and items.
+                burnSession.AddBurn(itemSO.itemData);
+            }
             fromInventory.RemoveItem(placedObject);
-            Debug.Log($"[Burn] Đã đốt item {itemSO.name} từ {fromInventory.name}");
+            Debug.Log($"[Burn] Burned {itemSO.name} from {fromInventory.name}");
             return true;
         }
 
@@ -100,7 +110,12 @@ public class InventoryLoadoutAndBurnSystem : MonoBehaviour
         // 1) Burn zone?
         if (IsPointerOverBurnZone(screenPos))
         {
-            Debug.Log($"[Burn] Đã đốt item {itemSO.name} từ slot {fromSlot.name}");
+            // Phase 1: add to burn session (pending) and let LoadoutSlotDragHandler clear the slot.
+            if (burnSession != null)
+            {
+                burnSession.AddBurn(itemSO.itemData);
+            }
+            Debug.Log($"[Burn] Burned {itemSO.name} from slot {fromSlot.name}");
             return true; // LoadoutSlotDragHandler sẽ Clear() slot
         }
 
